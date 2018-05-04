@@ -3,6 +3,7 @@ import time
 from pathlib import Path
 from mutagen.easyid3 import EasyID3
 import re;
+import shutil
 
 delay = 0.01
 import_folder = "/Users/lucasmarguet/WorkPerso/Python/AudioOrganizer/Audio"
@@ -34,16 +35,33 @@ def process_file(file):
     audio_file = EasyID3(file)
     base_name = get_file_name(file)
 
-    album = get_tag_from(audio_file, "album", "Unknown Album");
-    artist = get_tag_from(audio_file, "artist", "Unkown artist")
-    title = get_tag_from(audio_file, "title", base_name)
-    # print(get_tag_from(audio_file, "albumartist"))
-    # print(get_tag_from(audio_file, "author"))
+    extension = os.path.basename(file)
+    extension = os.path.splitext(extension)[1]
+
+    album = get_tag_from_audio(audio_file, "album", fallback_album);
+    title = get_tag_from_audio(audio_file, "title", base_name)
+
+    artist = get_tag_from_audio(audio_file, "artist", None)
+    album_artist = get_tag_from_audio(audio_file, "albumartist", None)
+    author =  get_tag_from_audio(audio_file, "author", None)
+
+    artist = resolve_artist(album_artist, artist, author)
+
+    destination = Path(export_folder).resolve()
+    destination = destination.joinpath(artist)
+    destination = destination.joinpath(album)
+    destination.mkdir(0o777, True, True)
+
+    destination_file = str(destination) + os.sep + title + extension
+    print(destination_file)
+
+    shutil.copy2(file, destination_file)
+
     print('%-40s %-40s %-40s' % (artist, album, title))
 
-    # print(artist, album, title)
 
-
+def resolve_artist(album_artist, artist, author):
+    return artist if artist != None else album_artist if album_artist != None else author if author != None else fallback_artist
 
 
 def get_file_name(file):
@@ -53,9 +71,8 @@ def get_file_name(file):
     return base_name
 
 
-def get_tag_from(audio, tag, fallback):
+def get_tag_from_audio(audio, tag, fallback):
     if (tag in audio):
-
         return char_filter(str(audio[tag]))
     else:
         return fallback
